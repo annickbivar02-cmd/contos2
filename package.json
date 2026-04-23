@@ -1,0 +1,9 @@
+{
+  "name": "bot-contos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot WhatsApp para venda automática de contos via Pix",
+  "engines": {
+    "node": ">=18"
+  }
+}
