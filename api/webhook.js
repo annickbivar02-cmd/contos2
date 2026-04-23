@@ -8,22 +8,24 @@ const ESTADOS = {
 };
 
 export default async function handler(req, res) {
-  res.status(200).json({ ok: true });
-  if (req.method !== 'POST') return;
+  if (req.method !== 'POST') {
+    return res.status(200).json({ ok: true });
+  }
 
   try {
     const body = req.body;
 
-    // Ignora mensagens enviadas pelo próprio bot
-    if (body?.wasSentByApi === true) return;
-    // Ignora grupos
-    if (body?.isGroup === true) return;
+    if (body?.wasSentByApi === true || body?.isGroup === true) {
+      return res.status(200).json({ ok: true });
+    }
 
     const from = body?.sender_pn || body?.from;
-    if (!from) return;
+    if (!from) return res.status(200).json({ ok: true });
 
     const tipo = body?.type;
     const estado = await kvGet(`estado:${from}`);
+
+    console.log('Mensagem de:', from, '| Tipo:', tipo, '| Estado:', estado);
 
     if (tipo === 'text') {
       await handleTexto(from, body?.content ?? body?.text ?? '', estado);
@@ -37,28 +39,30 @@ export default async function handler(req, res) {
       const mime = body?.mimeType ?? '';
       if (!mime.includes('pdf')) {
         await sendText(from, 'Por favor, envie o comprovante como *foto* ou *PDF*. 📎');
-        return;
+      } else {
+        await handleComprovante(from, {
+          url: body?.mediaUrl,
+          base64Already: body?.mediaBase64 ?? null,
+          mimeType: 'application/pdf',
+        }, estado);
       }
-      await handleComprovante(from, {
-        url: body?.mediaUrl,
-        base64Already: body?.mediaBase64 ?? null,
-        mimeType: 'application/pdf',
-      }, estado);
     } else {
       if (estado === ESTADOS.AGUARDANDO_PAGAMENTO) {
         await sendText(from, '😊 Estou aguardando seu comprovante! Envie como *foto* ou *PDF*.');
       }
     }
+
   } catch (err) {
     console.error('Erro no webhook:', err);
   }
+
+  return res.status(200).json({ ok: true });
 }
 
 async function handleTexto(from, texto, estado) {
   if (estado === ESTADOS.ENTREGUE) {
     await sendText(from,
-      `✨ Você já recebeu *${process.env.CONTO_TITLE}*!\n\n` +
-      `Aqui está o link novamente: ${process.env.CONTENT_URL}`
+      `✨ Você já recebeu *${process.env.CONTO_TITLE}*!\n\nAqui está o link novamente: ${process.env.CONTENT_URL}`
     );
     return;
   }
@@ -79,7 +83,7 @@ async function handleTexto(from, texto, estado) {
 
 async function handleComprovante(from, { url, base64Already, mimeType }, estado) {
   if (estado === ESTADOS.ENTREGUE) {
-    await sendText(from, `✨ Você já recebeu seu conto! Aqui está o link: ${process.env.CONTENT_URL}`);
+    await sendText(from, `✨ Você já recebeu seu conto! Aqui está: ${process.env.CONTENT_URL}`);
     return;
   }
 
