@@ -13,21 +13,20 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    console.log('Payload recebido:', JSON.stringify(body));
 
     // Ignora mensagens enviadas pelo próprio bot
-    if (body?.wasSentByApi) return;
+    if (body?.wasSentByApi === true) return;
     // Ignora grupos
-    if (body?.isGroup) return;
+    if (body?.isGroup === true) return;
 
-    const from = body?.from;
+    const from = body?.sender_pn || body?.from;
     if (!from) return;
 
-    const tipo = body?.contentType;
+    const tipo = body?.type;
     const estado = await kvGet(`estado:${from}`);
 
     if (tipo === 'text') {
-      await handleTexto(from, body?.content ?? '', estado);
+      await handleTexto(from, body?.content ?? body?.text ?? '', estado);
     } else if (tipo === 'image') {
       await handleComprovante(from, {
         url: body?.mediaUrl,
